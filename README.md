@@ -12,6 +12,7 @@ using (StreamReader sr = new StreamReader(sp.Open(1000), Encoding.ASCII, false, 
       Console.WriteLine(line);
   }
 }
+sp.Close();
 ```
 ##Todo
 - Port Auto Discovery (Problem dabei: Ports können auch geöffnet werden, wenn kein Gerät angeschlossen ist).
