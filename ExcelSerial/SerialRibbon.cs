@@ -166,48 +166,57 @@ namespace ExcelSerial
         private void bufferedReadAsync(int bufferSize, TimeSpan bufferDuration)
         {
             StreamReader sr = null;
-            try
-            {
-                sr = new StreamReader(
-                    sp.Open((int)bufferDuration.TotalMilliseconds), Encoding.ASCII, false, 1024);
-                recording = true;
-            }
-            catch (Exception err)
-            {
-                writeError(err);
-            }
+            recording = true;
 
             while (recording)                             // Wird von StopRecord() auf false gesetzt
             {
-                string[] buffer = new string[bufferSize];
-                int bufferCount = 0;
-                DateTime start = DateTime.Now;
                 try
                 {
-                    while (recording && bufferCount < bufferSize && (DateTime.Now - start) < bufferDuration)
+                    if (!sp.IsOpen)
                     {
-                        string line = sr.ReadLine();
-                        /* Hat es kein Timeout gegeben? */
-                        if (line != null)
+                        sr = new StreamReader(
+                            sp.Open((int)bufferDuration.TotalMilliseconds), Encoding.ASCII, false, 1024);
+                    }
+
+                    string[] buffer = new string[bufferSize];
+                    int bufferCount = 0;
+                    DateTime start = DateTime.Now;
+                    try
+                    {
+                        while (recording && bufferCount < bufferSize && (DateTime.Now - start) < bufferDuration)
                         {
-                            // Anzahl der Spalten ermitteln. Der Puffer muss zum Schreiben ins Excel
-                            // Arbeitsblatt rechteckig sein. Daher wird die maximale Spaltenanzahl für
-                            // alle Datensätze des Puffers genommen (kann bei CSV sich ja ändern).
-                            buffer[bufferCount++] = line;
+                            string line = sr.ReadLine();
+                            /* Hat es kein Timeout gegeben? */
+                            if (line != null)
+                            {
+                                // Anzahl der Spalten ermitteln. Der Puffer muss zum Schreiben ins Excel
+                                // Arbeitsblatt rechteckig sein. Daher wird die maximale Spaltenanzahl für
+                                // alle Datensätze des Puffers genommen (kann bei CSV sich ja ändern).
+                                buffer[bufferCount++] = line;
+                            }
                         }
                     }
+                    /* Fehler beim Lesen: Port schließen und neu öffnen. */
+                    catch (Exception err)
+                    {
+                        sr.Close();
+                        sp.Close();
+                        System.Threading.Thread.Sleep(1000);
+                        writeError(err);
+                    }
+                    // Startet den Verarbeitungstask.
+                    parseTask = new Task(() => parseBufferAsync(buffer, bufferCount));
+                    parseTask.Start();
                 }
+                /* Fehler beim Öffnen des Ports */
                 catch (Exception err)
                 {
-                    recording = false;
                     writeError(err);
                 }
-                // Startet den Verarbeitungstask.
-                parseTask = new Task(()=>parseBufferAsync(buffer, bufferCount));
-                parseTask.Start();
             }
+            sr?.Close();
             sp.Close();
-            // Nach dem Beenden warten, bis der Parser die Daten ins Arbeitsblatt geschrieben hat.
+            /* Nach dem Beenden warten, bis die Daten ins Arbeitsblatt geschrieben wurden. */
             parseTask?.Wait();
         }
 

@@ -58,7 +58,7 @@ namespace WinSerial.Library
         /// <summary>
         /// Liefert true, wenn der Port geöffnet ist. False wenn der Port geschlossen ist.
         /// </summary>
-        public bool IsOpen { get { return HComPort == IntPtr.Zero; } }
+        public bool IsOpen { get { return HComPort != IntPtr.Zero; } }
         /// <summary>
         /// Setzt einen String im Format Baudrate/DataBits-Parity-Stoppbits.
         /// Parity kann N, O, E, M, S sein.
